@@ -7,15 +7,17 @@ app.use(express.json());
 let estadoAlimentador = {
     porcentajeComida: 100,
     distanciaCm: 0,
+    dispensando: false,
     ultimaActualizacion: null
 };
 
 app.post('/api/status', (req, res) => {
-    const { porcentajeComida, distanciaCm } = req.body;
+    const { porcentajeComida, distanciaCm, dispensando } = req.body;
     
     estadoAlimentador = {
         porcentajeComida: constrain(parseInt(porcentajeComida), 0, 100),
         distanciaCm: parseFloat(distanciaCm),
+        dispensando: dispensando === true || dispensando === "true",
         ultimaActualizacion: new Date().toLocaleString("es-EC", { timeZone: "America/Guayaquil" })
     };
 
@@ -31,7 +33,6 @@ app.get('/api/status', (req, res) => {
     res.json(estadoAlimentador);
 });
 
-// INTERFAZ ELEGANTE Y ANIMADA
 app.get('/', (req, res) => {
     res.send(`
     <!DOCTYPE html>
@@ -120,7 +121,6 @@ app.get('/', (req, res) => {
                 margin-bottom: 35px;
             }
 
-            /* Contenedor de nivel circular/óvalo */
             .level-wrapper {
                 position: relative;
                 width: 160px;
@@ -185,6 +185,20 @@ app.get('/', (req, res) => {
                 display: none;
                 animation: slideDown 0.4s ease forwards;
                 box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+                margin-bottom: 15px;
+            }
+
+            .dispensing-banner {
+                background: #f5f3ff;
+                color: #7c3aed;
+                border: 2px dashed #c084fc;
+                padding: 14px;
+                border-radius: 18px;
+                font-size: 14px;
+                font-weight: 600;
+                display: none;
+                animation: pulseBg 1.5s infinite ease-in-out;
+                box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
             }
 
             .footer-date {
@@ -208,6 +222,12 @@ app.get('/', (req, res) => {
             @keyframes slideDown {
                 from { opacity: 0; transform: translateY(-10px); }
                 to { opacity: 1; transform: translateY(0); }
+            }
+
+            @keyframes pulseBg {
+                0% { opacity: 0.8; transform: scale(0.99); }
+                50% { opacity: 1; transform: scale(1.01); }
+                100% { opacity: 0.8; transform: scale(0.99); }
             }
         </style>
     </head>
@@ -235,6 +255,10 @@ app.get('/', (req, res) => {
                 ⚠️ ALERTA: Rellenar el depósito inmediato
             </div>
 
+            <div id="dispensando-box" class="dispensing-banner">
+                🥣 Se está depositando la comida en este momento...
+            </div>
+
             <div class="footer-date">
                 Sincronizado:<br><strong id="fecha-txt">Esperando datos...</strong>
             </div>
@@ -248,12 +272,10 @@ app.get('/', (req, res) => {
                     
                     const porcentaje = datos.porcentajeComida;
                     
-                    // Actualizar texto y barra de carga fluida
                     document.getElementById('comida-txt').innerText = porcentaje + '%';
                     const water = document.getElementById('water');
                     water.style.height = porcentaje + '%';
                     
-                    // Cambiar color de texto según la altura del nivel de comida
                     if(porcentaje > 52) {
                         document.getElementById('comida-txt').classList.add('white');
                     } else {
@@ -263,7 +285,7 @@ app.get('/', (req, res) => {
                     document.getElementById('distancia-txt').innerText = datos.distanciaCm.toFixed(1) + ' cm';
                     document.getElementById('fecha-txt').innerText = datos.ultimaActualizacion || 'Sin registros';
                     
-                    // Alerta elegante al bajar de 10%
+                    // Manejar alerta de depósito vacío
                     const alerta = document.getElementById('alerta-box');
                     const pulseDot = document.getElementById('pulse-dot');
                     
@@ -276,13 +298,22 @@ app.get('/', (req, res) => {
                         water.style.background = 'linear-gradient(180deg, var(--primary) 0%, #4f46e5 100%)';
                         pulseDot.style.background = 'var(--success)';
                     }
+
+                    // Manejar cartel en tiempo real de "Dispensando"
+                    const dispensandoBox = document.getElementById('dispensando-box');
+                    if (datos.dispensando) {
+                        dispensandoBox.style.display = 'block';
+                    } else {
+                        dispensandoBox.style.display = 'none';
+                    }
+
                 } catch (err) {
                     console.error("Error obteniendo datos de API:", err);
                 }
             }
 
             actualizarUI();
-            setInterval(actualizarUI, 3000);
+            setInterval(actualizarUI, 1500); // Frecuencia aumentada para respuesta ágil
         </script>
     </body>
     </html>
